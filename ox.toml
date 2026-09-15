@@ -9,7 +9,7 @@ runtime = "bun"
 framework = "generic"
 package_manager = "bun"
 port = 9120
-environment_file = "/etc/ox/apps/oxzoo-worker-bun.env"
+environment_file = "/etc/ox/projects/oxzoo-worker-bun.env"
 required_packages = ["nodejs"]
 
 [[apt_sources]]
