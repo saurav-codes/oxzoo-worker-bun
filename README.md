@@ -23,13 +23,13 @@ The `port = 9120` in the manifest exists only because ox requires a project port
 
 One variable, one path:
 
-**`GREETING_TAG`** is runtime-only. `worker.ts` reads `Bun.env.GREETING_TAG` once at startup, fails loudly with a non-zero exit if it is missing or empty, and folds the value into every line it prints. ox injects it from `/etc/ox/apps/oxzoo-worker-bun.env` into the systemd unit's environment, so changing the value in the ox Environment editor and restarting the process is enough; no rebuild is involved because there is no build step.
+**`GREETING_TAG`** is runtime-only. `worker.ts` reads `Bun.env.GREETING_TAG` once at startup, fails loudly with a non-zero exit if it is missing or empty, and folds the value into every line it prints. ox injects it from `/srv/ox/oxzoo-worker-bun/env` into the systemd unit's environment, so changing the value in the ox Environment editor and restarting the process is enough; no rebuild is involved because there is no build step.
 
 `.env.example` documents the variable with a placeholder; real values live in the ox dashboard, never in git.
 
 ## Deploy with ox
 
-1. Add the repo in the ox dashboard: paste the clone URL `https://github.com/saurav-codes/oxzoo-worker-bun`.
+1. Add the repo in the ox dashboard: paste the clone URL `git@github.com:saurav-codes/oxzoo-worker-bun`.
 2. In the Environment editor, set `GREETING_TAG=w3-06`.
 3. Press **Deploy**. ox runs `npm install` (bootstrapping `node_modules/.bin/bun`), then starts `node_modules/.bin/bun worker.ts` as a systemd unit with `Restart=always`. No domain is needed; skip the domain step entirely.
 
