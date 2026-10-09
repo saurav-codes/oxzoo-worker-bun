@@ -1,6 +1,8 @@
 # oxzoo-worker-bun
 
-An official ox deploy example: an internal Bun 1.3.14 worker written in strict TypeScript that prints one greeting line to stdout every 10 seconds, forever, deployed to a single Ubuntu VPS by the [ox](https://github.com/saurav-codes/ox) control plane from one `ox.toml` manifest at the repo root. There is no domain, no nginx routing, and no HTTP server: the process never listens on a socket. The journal IS the product. ox clones the repo into a git worktree, runs `npm install` as an unprivileged hook, and runs the worker as a systemd service with `Restart=always`; the only way to verify it is watching systemd's journal:
+Deployed with [ox](https://deploywithox.com): deploy a repo to your own server with one command, no Docker. [Docs](https://deploywithox.com/docs) · [Stack guides](https://deploywithox.com/docs/guides)
+
+An official ox deploy example: an internal Bun 1.3.14 worker written in strict TypeScript that prints one greeting line to stdout every 10 seconds, forever, deployed to a single Ubuntu VPS by the [ox](https://deploywithox.com) control plane from one `ox.toml` manifest at the repo root. There is no domain, no nginx routing, and no HTTP server: the process never listens on a socket. The journal IS the product. ox clones the repo into a git worktree, runs `npm install` as an unprivileged hook, and runs the worker as a systemd service with `Restart=always`; the only way to verify it is watching systemd's journal:
 
 ```bash
 journalctl -u ox-oxzoo-worker-bun-worker.service
