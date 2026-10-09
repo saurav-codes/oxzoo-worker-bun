@@ -6,7 +6,7 @@ function say(): void {
 
 if (tag === "") {
   console.error(
-    "GREETING_TAG is not set or empty; refusing to start. Set it in the ox Environment editor, or pass GREETING_TAG=<tag> locally.",
+    "GREETING_TAG is not set or empty; refusing to start. Set it with ox vars set, or pass GREETING_TAG=<tag> locally.",
   );
   process.exit(1);
 }

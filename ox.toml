@@ -1,26 +1,7 @@
-# ox deploy manifest for oxzoo-worker-bun: an internal worker with no web
-# surface. Hooks run unprivileged, so bun installs as a local devDependency
-# via npm (NodeSource node bundles npm) and the unit runs it from
-# node_modules/.bin; output is verified through journalctl.
+# A Bun + TypeScript background worker: no web process, no domain.
 
-name = "oxzoo-worker-bun"
-branch = "main"
-runtime = "bun"
-package_manager = "bun"
-port = 9120
-required_packages = ["nodejs"]
+[app]
+enabled = false
 
-[[apt_sources]]
-name = "nodesource"
-url = "https://deb.nodesource.com/node_22.x"
-suite = "nodistro"
-components = ["main"]
-key_url = "https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key"
-
-[[processes]]
-name = "worker"
-command = "node_modules/.bin/bun worker.ts"
-restart_policy = "always"
-
-[deploy]
-install = ["npm install"]
+[workers]
+worker = "bun worker.ts"

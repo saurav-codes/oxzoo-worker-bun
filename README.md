@@ -1,61 +1,70 @@
 # oxzoo-worker-bun
 
-Deployed with [ox](https://deploywithox.com): deploy a repo to your own server with one command, no Docker. [Docs](https://deploywithox.com/docs) · [Stack guides](https://deploywithox.com/docs/guides)
+Deployed with [ox](https://deploywithox.com): deploy a repo to your own server with one command, no Docker. [Docs](https://deploywithox.com/docs) · [Guide for Bun](https://deploywithox.com/docs/guides/hono-bun)
 
-An official ox deploy example: an internal Bun 1.3.14 worker written in strict TypeScript that prints one greeting line to stdout every 10 seconds, forever, deployed to a single Ubuntu VPS by the [ox](https://deploywithox.com) control plane from one `ox.toml` manifest at the repo root. There is no domain, no nginx routing, and no HTTP server: the process never listens on a socket. The journal IS the product. ox clones the repo into a git worktree, runs `npm install` as an unprivileged hook, and runs the worker as a systemd service with `Restart=always`; the only way to verify it is watching systemd's journal:
-
-```bash
-journalctl -u ox-oxzoo-worker-bun-worker.service
-```
-
-The `port = 9120` in the manifest exists only because ox requires a project port even for non-listening workers. Nothing binds it.
+An [ox](https://deploywithox.com) deploy example: a Bun + TypeScript background worker, deployed to your own Ubuntu server. There is no domain, no HTTP server, and no build step; the logs are the product. ox installs Bun, runs `worker.ts` directly under systemd, and restarts it if it exits.
 
 ## Stack
 
 | Component | Version | Purpose |
 |---|---|---|
-| Worker runtime | Bun 1.3.14 | executes `worker.ts` directly (TypeScript, no build step) and prints the greeting line |
-| Language | TypeScript (strict) | source language; run by bun with no separate compiler in dependencies |
-| Bootstrap | npm (NodeSource node 22.x) | installs bun as a local devDependency into `node_modules/.bin/bun` |
-| Deploy | ox (`ox.toml`) | clones the repo, runs install hooks, generates the systemd unit with `Restart=always` |
+| Runtime | Bun 1.3 (ox's default; mise installs it) | runs `worker.ts` directly, TypeScript with no compile step |
+| Language | TypeScript (strict) | `@types/bun` is the only dependency, for editor types |
 
-**Why bun lives in `node_modules`:** ox install hooks run as the unprivileged project user, so nothing can be installed globally (no sudo, and Ubuntu ships no bun apt package). Instead `bun` is pinned as an exact local devDependency, `npm install` bootstraps it into `node_modules/.bin/bun`, and the systemd command runs the worker through it: `node_modules/.bin/bun worker.ts`. Node itself comes from the NodeSource apt repo (`required_packages = ["nodejs"]` with the matching `[[apt_sources]]` entry, because the distro `nodejs` package conflicts with NodeSource); npm is bundled with it, so the install hook needs nothing else. Exact pins in `package.json` keep installs deterministic.
+## ox.toml
+
+```toml
+# A Bun + TypeScript background worker: no web process, no domain.
+
+[app]
+enabled = false
+
+[workers]
+worker = "bun worker.ts"
+```
+
+`[app] enabled = false` says the project has no web process, so ox adds none and asks for no domain. ox detects `bun install --frozen-lockfile` from `bun.lock`.
 
 ## Environment flow
 
-One variable, one path:
-
-**`GREETING_TAG`** is runtime-only. `worker.ts` reads `Bun.env.GREETING_TAG` once at startup, fails loudly with a non-zero exit if it is missing or empty, and folds the value into every line it prints. ox injects it from `/srv/ox/oxzoo-worker-bun/env` into the systemd unit's environment, so changing the value in the ox Environment editor and restarting the process is enough; no rebuild is involved because there is no build step.
-
-`.env.example` documents the variable with a placeholder; real values live in the ox dashboard, never in git.
+`worker.ts` reads `Bun.env.GREETING_TAG` once at startup, exits 1 if it is missing or empty, and puts the value in every line it prints. Changing it with `ox vars set` redeploys, and the next lines carry the new value.
 
 ## Deploy with ox
 
-1. Add the repo in the ox dashboard: paste the clone URL `git@github.com:saurav-codes/oxzoo-worker-bun`.
-2. In the Environment editor, set `GREETING_TAG=w3-06`.
-3. Press **Deploy**. ox runs `npm install` (bootstrapping `node_modules/.bin/bun`), then starts `node_modules/.bin/bun worker.ts` as a systemd unit with `Restart=always`. No domain is needed; skip the domain step entirely.
+```sh
+curl -fsSL https://deploywithox.com/install.sh | sh
+ox login
+ox new https://github.com/saurav-codes/oxzoo-worker-bun
+printf 'GREETING_TAG=demo\n' | ox review oxzoo-worker-bun --from-file - --wait
+```
+
+The plan, offline:
+
+```console
+$ ox check .
+ox check . (manifest: ox.toml)
+
+  build.install              bun install --frozen-lockfile                        detected:bun.lock
+  workers.worker             bun worker.ts                                        declared
+  tools.bun                  1.3                                                  default
+
+  Provided by ox: PORT, HOST, OX_ENV, OX_PROJECT, OX_RELEASE, OX_DATA_DIR
+  Set on the dashboard before the first deploy: GREETING_TAG
+
+Ready to deploy.
+```
 
 ## Expected output
 
-The unit name is `ox-<project>-<process>.service`: the project is `oxzoo-worker-bun` and the manifest declares one process named `worker`, so the unit is `ox-oxzoo-worker-bun-worker.service`.
-
-```bash
-journalctl -u ox-oxzoo-worker-bun-worker.service
+```sh
+ox logs oxzoo-worker-bun --follow
 ```
 
-shows the exact line
-
-```
-hello world oxzoo-worker-bun_w3-06
-```
-
-repeating every 10 seconds (printed once immediately at start, then on a 10-second interval). Because `restart_policy = "always"`, systemd also restarts the worker whenever it exits; a missing or empty `GREETING_TAG` is a deliberate crash loop with a clear stderr message on every attempt.
+shows `hello world oxzoo-worker-bun_<GREETING_TAG>` repeating.
 
 ## Local development
 
-```bash
-npm install                  # installs bun 1.3.14 into node_modules/.bin
-GREETING_TAG=dev npm start   # prints: hello world oxzoo-worker-bun_dev
+```sh
+bun install
+GREETING_TAG=dev bun worker.ts
 ```
-
-Pass env inline per the commands above; never commit a real `.env`.
